@@ -1,0 +1,322 @@
+<a id="downloadLink" download="2PlayerSnake.html" href="#">2인용 지렁이 게임 다운로드</a>
+
+<script>
+  // 게임 전체 코드 (위에서 제공한 2인용 지렁이 게임 코드)
+  const fileContent = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>2인용 지렁이 게임</title>
+  <style>
+    body {
+      background-color: #222;
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      background-color: #000;
+      display: block;
+      margin: 20px auto;
+      border: 2px solid #fff;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="1200" height="800"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const snakeSize = 20;
+    // 플레이어 1 (WASD, 초록색)
+    let snake1 = [
+      { x: 200, y: 200 },
+      { x: 180, y: 200 },
+      { x: 160, y: 200 }
+    ];
+    let direction1 = 'RIGHT';
+    let nextDirection1 = direction1;
+    let score1 = 0;
+    // 플레이어 2 (화살표, 파란색)
+    let snake2 = [
+      { x: 1000, y: 600 },
+      { x: 1020, y: 600 },
+      { x: 1040, y: 600 }
+    ];
+    let direction2 = 'LEFT';
+    let nextDirection2 = direction2;
+    let score2 = 0;
+    const INTERVAL = 100;
+    let foods = [];
+    const spawnProbability = 0.05;
+    function getRandomPosition() {
+      const x = Math.floor(Math.random() * (canvas.width / snakeSize)) * snakeSize;
+      const y = Math.floor(Math.random() * (canvas.height / snakeSize)) * snakeSize;
+      return { x, y };
+    }
+    function spawnFood() {
+      let newFood;
+      do {
+        newFood = getRandomPosition();
+      } while (
+        snake1.some(part => part.x === newFood.x && part.y === newFood.y) ||
+        snake2.some(part => part.x === newFood.x && part.y === newFood.y) ||
+        foods.some(food => food.x === newFood.x && food.y === newFood.y)
+      );
+      const types = ["red", "blue", "yellow"];
+      newFood.type = types[Math.floor(Math.random() * types.length)];
+      foods.push(newFood);
+    }
+    document.addEventListener("keydown", function(e) {
+      const key = e.key;
+      // 플레이어 1 (WASD)
+      if (key === 'w' || key === 'W') {
+        if (direction1 !== 'DOWN') nextDirection1 = 'UP';
+      } else if (key === 'a' || key === 'A') {
+        if (direction1 !== 'RIGHT') nextDirection1 = 'LEFT';
+      } else if (key === 's' || key === 'S') {
+        if (direction1 !== 'UP') nextDirection1 = 'DOWN';
+      } else if (key === 'd' || key === 'D') {
+        if (direction1 !== 'LEFT') nextDirection1 = 'RIGHT';
+      }
+      // 플레이어 2 (화살표)
+      else if (key === 'ArrowUp') {
+        if (direction2 !== 'DOWN') nextDirection2 = 'UP';
+      } else if (key === 'ArrowDown') {
+        if (direction2 !== 'UP') nextDirection2 = 'DOWN';
+      } else if (key === 'ArrowLeft') {
+        if (direction2 !== 'RIGHT') nextDirection2 = 'LEFT';
+      } else if (key === 'ArrowRight') {
+        if (direction2 !== 'LEFT') nextDirection2 = 'RIGHT';
+      }
+    });
+    function gameOver() {
+      alert("Game Over!\nPlayer 1 Score: " + score1 + "\nPlayer 2 Score: " + score2);
+      snake1 = [
+        { x: 200, y: 200 },
+        { x: 180, y: 200 },
+        { x: 160, y: 200 }
+      ];
+      direction1 = 'RIGHT';
+      nextDirection1 = direction1;
+      score1 = 0;
+      snake2 = [
+        { x: 1000, y: 600 },
+        { x: 1020, y: 600 },
+        { x: 1040, y: 600 }
+      ];
+      direction2 = 'LEFT';
+      nextDirection2 = direction2;
+      score2 = 0;
+      foods = [];
+    }
+    function update() {
+      if (Math.random() < spawnProbability) {
+        spawnFood();
+      }
+      direction1 = nextDirection1;
+      direction2 = nextDirection2;
+      const newHead1 = { x: snake1[0].x, y: snake1[0].y };
+      if (direction1 === 'UP') newHead1.y -= snakeSize;
+      else if (direction1 === 'DOWN') newHead1.y += snakeSize;
+      else if (direction1 === 'LEFT') newHead1.x -= snakeSize;
+      else if (direction1 === 'RIGHT') newHead1.x += snakeSize;
+      const newHead2 = { x: snake2[0].x, y: snake2[0].y };
+      if (direction2 === 'UP') newHead2.y -= snakeSize;
+      else if (direction2 === 'DOWN') newHead2.y += snakeSize;
+      else if (direction2 === 'LEFT') newHead2.x -= snakeSize;
+      else if (direction2 === 'RIGHT') newHead2.x += snakeSize;
+      if (newHead1.x < 0 || newHead1.x >= canvas.width || newHead1.y < 0 || newHead1.y >= canvas.height) {
+        gameOver();
+        return;
+      }
+      if (newHead2.x < 0 || newHead2.x >= canvas.width || newHead2.y < 0 || newHead2.y >= canvas.height) {
+        gameOver();
+        return;
+      }
+      if (snake1.some(segment => segment.x === newHead1.x && segment.y === newHead1.y)) {
+        gameOver();
+        return;
+      }
+      if (snake2.some(segment => segment.x === newHead2.x && segment.y === newHead2.y)) {
+        gameOver();
+        return;
+      }
+      if (snake2.some(segment => segment.x === newHead1.x && segment.y === newHead1.y)) {
+        gameOver();
+        return;
+      }
+      if (snake1.some(segment => segment.x === newHead2.x && segment.y === newHead2.y)) {
+        gameOver();
+        return;
+      }
+      if (newHead1.x === newHead2.x && newHead1.y === newHead2.y) {
+        gameOver();
+        return;
+      }
+      snake1.unshift(newHead1);
+      snake2.unshift(newHead2);
+      let foodEaten1 = false;
+      let eatenType1 = null;
+      for (let i = 0; i < foods.length; i++) {
+        const food = foods[i];
+        if (newHead1.x === food.x && newHead1.y === food.y) {
+          foodEaten1 = true;
+          eatenType1 = food.type;
+          foods.splice(i, 1);
+          break;
+        }
+      }
+      let foodEaten2 = false;
+      let eatenType2 = null;
+      for (let i = 0; i < foods.length; i++) {
+        const food = foods[i];
+        if (newHead2.x === food.x && newHead2.y === food.y) {
+          foodEaten2 = true;
+          eatenType2 = food.type;
+          foods.splice(i, 1);
+          break;
+        }
+      }
+      if (foodEaten1) {
+        if (eatenType1 === "red") {
+          score1 += 1;
+        } else if (eatenType1 === "blue") {
+          score1 += 2;
+          for (let i = 0; i < 6; i++) {
+            const tail = snake1[snake1.length - 1];
+            snake1.push({ x: tail.x, y: tail.y });
+          }
+        } else if (eatenType1 === "yellow") {
+          score1 += 3;
+          for (let i = 0; i < 4; i++) {
+            const tail = snake1[snake1.length - 1];
+            snake1.push({ x: tail.x, y: tail.y });
+          }
+        }
+      } else {
+        snake1.pop();
+      }
+      if (foodEaten2) {
+        if (eatenType2 === "red") {
+          score2 += 1;
+        } else if (eatenType2 === "blue") {
+          score2 += 2;
+          for (let i = 0; i < 6; i++) {
+            const tail = snake2[snake2.length - 1];
+            snake2.push({ x: tail.x, y: tail.y });
+          }
+        } else if (eatenType2 === "yellow") {
+          score2 += 3;
+          for (let i = 0; i < 4; i++) {
+            const tail = snake2[snake2.length - 1];
+            snake2.push({ x: tail.x, y: tail.y });
+          }
+        }
+      } else {
+        snake2.pop();
+      }
+    }
+    function draw() {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      foods.forEach(food => {
+        let foodColor;
+        if (food.type === "red") foodColor = "#f00";
+        else if (food.type === "blue") foodColor = "#00f";
+        else if (food.type === "yellow") foodColor = "#ff0";
+        ctx.fillStyle = foodColor;
+        ctx.fillRect(food.x, food.y, snakeSize, snakeSize);
+      });
+      ctx.fillStyle = "#0f0";
+      snake1.forEach(segment => {
+        ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize);
+      });
+      if (snake1.length > 0) {
+        const head = snake1[0];
+        const eyeRadius = 3;
+        ctx.fillStyle = "#fff";
+        if (direction1 === "RIGHT") {
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (direction1 === "LEFT") {
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (direction1 === "UP") {
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (direction1 === "DOWN") {
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = "#00f";
+      snake2.forEach(segment => {
+        ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize);
+      });
+      if (snake2.length > 0) {
+        const head = snake2[0];
+        const eyeRadius = 3;
+        ctx.fillStyle = "#fff";
+        if (direction2 === "RIGHT") {
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (direction2 === "LEFT") {
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (direction2 === "UP") {
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (direction2 === "DOWN") {
+          ctx.beginPath();
+          ctx.arc(head.x + 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(head.x + snakeSize - 4, head.y + snakeSize - 4, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = "#fff";
+      ctx.font = "20px Arial";
+      ctx.fillText("Player 1 Score: " + score1, 10, 30);
+      ctx.fillText("Player 2 Score: " + score2, 10, 60);
+    }
+    function gameLoop() {
+      update();
+      draw();
+    }
+    setInterval(gameLoop, INTERVAL);
+  <\/script>
+</body>
+</html>`;
+  const blob = new Blob([fileContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  document.getElementById('downloadLink').href = url;
+</script>

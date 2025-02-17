@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>갤러그 스타일 슈팅 게임 - 아이템 추가 버전</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: black;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="480" height="640"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+
+    // 게임 상태 변수
+    let score = 0;
+    let level = 1;
+    let gameOver = false;
+    let bgHue = 0;
+
+    // 미사일 라인 업그레이드 아이템 (파란색) : 스테이지당 1번 드롭
+    let itemDropped = false;
+
+    // 새 미사일 발사속도 업그레이드 아이템 (빨간 별) : 스테이지 종료 시 등장 (한 스테이지당 1개)
+    let speedItem = null;
+    let speedItemSpawned = false;
+
+    // 필살기 관련 변수 (엔터키)
+    let ultimateAvailable = true;
+    let ultimateTimer = 0;
+    const ultimateCooldown = 5000; // 5초 쿨다운
+
+    // 키 입력 관리
+    const keys = {};
+    window.addEventListener("keydown", e => {
+      keys[e.code] = true;
+      // 필살기: 엔터키 누르면 발동 (쿨다운 완료 시)
+      if (e.code === "Enter" && ultimateAvailable) {
+        score += enemies.length;
+        enemies.length = 0;
+        enemyBullets.length = 0;
+        ultimateAvailable = false;
+        ultimateTimer = 0;
+      }
+    });
+    window.addEventListener("keyup", e => {
+      keys[e.code] = false;
+    });
+
+    // 별 모양 그리기 함수 (중심 좌표, 외부 반지름, 별의 꼭짓점 개수, 색상)
+    function drawStar(cx, cy, outerRadius, points, color) {
+      const innerRadius = outerRadius / 2;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      for (let i = 0; i < points * 2; i++) {
+        const angle = (i * Math.PI) / points;
+        const r = i % 2 === 0 ? outerRadius : innerRadius;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 플레이어 클래스 (상하좌우 이동, 생명 3, 미사일 발사 라인/발사 속도)
+    class Player {
+      constructor() {
+        this.width = 40;
+        this.height = 30;
+        this.x = canvasWidth / 2 - this.width / 2;
+        this.y = canvasHeight - this.height - 10;
+        this.speed = 5;
+        this.color = "white";
+        this.lives = 3;
+        this.missileLines = 1;  // 미사일 발사 라인 수 (업그레이드 아이템 효과)
+        this.fireCooldown = 300; // 미사일 발사 쿨다운 (ms) – 업그레이드 아이템 효과로 감소
+        this.lastShotTime = 0;
+      }
+      update() {
+        if (keys["ArrowLeft"])  this.x -= this.speed;
+        if (keys["ArrowRight"]) this.x += this.speed;
+        if (keys["ArrowUp"])    this.y -= this.speed;
+        if (keys["ArrowDown"])  this.y += this.speed;
+        // 화면 경계 제한
+        if (this.x < 0) this.x = 0;
+        if (this.x + this.width > canvasWidth) this.x = canvasWidth - this.width;
+        if (this.y < 0) this.y = 0;
+        if (this.y + this.height > canvasHeight) this.y = canvasHeight - this.height;
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+    }
+
+    // 플레이어 미사일 클래스
+    class Bullet {
+      constructor(x, y) {
+        this.width = 5;
+        this.height = 10;
+        this.x = x - this.width / 2;
+        this.y = y;
+        this.speed = 10;
+        this.color = "red";
+      }
+      update() {
+        this.y -= this.speed;
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+      isOut() {
+        return this.y + this.height < 0;
+      }
+    }
+
+    // 적 클래스 (좌우 이동, 경계 도달 시 방향 전환 및 아래로 이동, 레벨에 따라 속도/발사 확률 증가)
+    class Enemy {
+      constructor(x, y, level) {
+        this.width = 30;
+        this.height = 30;
+        this.x = x;
+        this.y = y;
+        this.speed = 2 + (level - 1);
+        this.direction = 1; // 오른쪽 이동 시작
+        this.color = "green";
+        this.shootProbability = 0.001 * level;
+      }
+      update() {
+        this.x += this.speed * this.direction;
+        if (this.x + this.width >= canvasWidth || this.x <= 0) {
+          this.direction *= -1;
+          this.y += 20;
+        }
+        // 적 미사일 발사 (랜덤 확률)
+        if (Math.random() < this.shootProbability) {
+          enemyBullets.push(new EnemyBullet(this.x + this.width / 2, this.y + this.height));
+        }
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+    }
+
+    // 적 미사일 클래스 (레벨에 따라 속도 증가)
+    class EnemyBullet {
+      constructor(x, y) {
+        this.width = 5;
+        this.height = 10;
+        this.x = x - this.width / 2;
+        this.y = y;
+        this.speed = 5 + (level - 1);
+        this.color = "yellow";
+      }
+      update() {
+        this.y += this.speed;
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+      isOut() {
+        return this.y > canvasHeight;
+      }
+    }
+
+    // 미사일 발사 라인 업그레이드 아이템 (파란색 정사각형)
+    class Item {
+      constructor(x, y) {
+        this.width = 20;
+        this.height = 20;
+        this.x = x;
+        this.y = y;
+        this.speed = 2;
+        this.color = "blue";
+      }
+      update() {
+        this.y += this.speed;
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+      isOut() {
+        return this.y > canvasHeight;
+      }
+    }
+
+    // 미사일 발사 속도 업그레이드 아이템 (빨간 별 아이콘)
+    class SpeedItem {
+      constructor(x, y) {
+        this.width = 20;
+        this.height = 20;
+        this.x = x;
+        this.y = y;
+        this.speed = 2; // 천천히 하강
+        this.color = "red"; // 빨간 별
+      }
+      update() {
+        this.y += this.speed;
+      }
+      draw() {
+        // 아이템의 중심에 빨간 별을 그립니다.
+        drawStar(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 5, this.color);
+      }
+      isOut() {
+        return this.y > canvasHeight;
+      }
+    }
+
+    // 충돌 검사 함수
+    function isColliding(a, b) {
+      return a.x < b.x + b.width &&
+             a.x + a.width > b.x &&
+             a.y < b.y + b.height &&
+             a.y + a.height > b.y;
+    }
+
+    // 게임 오브젝트들
+    const player = new Player();
+    const bullets = [];
+    const enemies = [];
+    const enemyBullets = [];
+    const items = []; // 파란 아이템 배열
+
+    // 적 생성 함수 (새 스테이지 시작 시 호출)
+    function spawnEnemies() {
+      enemies.length = 0;
+      const rows = 3;
+      const cols = 7;
+      const spacingX = 50;
+      const spacingY = 50;
+      const enemyWidth = 30;
+      const offsetX = (canvasWidth - ((cols - 1) * spacingX + enemyWidth)) / 2;
+      const offsetY = 50;
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          let x = offsetX + col * spacingX;
+          let y = offsetY + row * spacingY;
+          enemies.push(new Enemy(x, y, level));
+        }
+      }
+      itemDropped = false;      // 파란 아이템 드롭 여부 초기화
+      speedItem = null;         // 빨간 아이템 초기화
+      speedItemSpawned = false; // 새 스테이지 당 빨간 아이템 등장 여부 초기화
+    }
+    spawnEnemies();
+
+    // 게임 루프
+    function gameLoop() {
+      update();
+      render();
+      if (!gameOver) {
+        requestAnimationFrame(gameLoop);
+      } else {
+        ctx.fillStyle = "red";
+        ctx.font = "40px Arial";
+        ctx.fillText("Game Over", canvasWidth / 2 - 100, canvasHeight / 2);
+      }
+    }
+
+    function update() {
+      const now = performance.now();
+      bgHue += 0.2;
+      if (bgHue >= 360) bgHue = 0;
+
+      // 필살기 쿨다운 업데이트
+      if (!ultimateAvailable) {
+        ultimateTimer += 16.67; // 약 60FPS 기준
+        if (ultimateTimer >= ultimateCooldown) {
+          ultimateAvailable = true;
+        }
+      }
+
+      player.update();
+
+      // 플레이어 미사일 발사 (fireCooldown 기반 연사)
+      if (keys["Space"]) {
+        if (now - player.lastShotTime >= player.fireCooldown) {
+          const lines = player.missileLines;
+          const spacing = 10; // 미사일 간 간격
+          const totalWidth = (lines - 1) * spacing;
+          for (let i = 0; i < lines; i++) {
+            const offset = i * spacing - totalWidth / 2;
+            const bulletX = player.x + player.width / 2 + offset;
+            bullets.push(new Bullet(bulletX, player.y));
+          }
+          player.lastShotTime = now;
+        }
+      }
+
+      // 플레이어 미사일 업데이트
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].update();
+        if (bullets[i].isOut()) {
+          bullets.splice(i, 1);
+        }
+      }
+
+      // 적 업데이트
+      enemies.forEach(enemy => enemy.update());
+
+      // 적 미사일 업데이트
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        enemyBullets[i].update();
+        if (enemyBullets[i].isOut()) {
+          enemyBullets.splice(i, 1);
+        }
+      }
+
+      // 파란 아이템(미사일 라인 업그레이드) 업데이트
+      for (let i = items.length - 1; i >= 0; i--) {
+        items[i].update();
+        if (items[i].isOut()) {
+          items.splice(i, 1);
+        }
+      }
+
+      // 빨간 아이템(발사속도 업그레이드) 업데이트
+      if (speedItem) {
+        speedItem.update();
+        if (speedItem.isOut()) {
+          speedItem = null;
+        }
+      }
+
+      // 충돌 검사: 플레이어 미사일 vs 적
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          if (isColliding(bullets[i], enemies[j])) {
+            bullets.splice(i, 1);
+            // 파란 아이템은 아직 드롭되지 않았다면 적 사망 시 드롭
+            if (!itemDropped) {
+              items.push(new Item(enemies[j].x, enemies[j].y));
+              itemDropped = true;
+            }
+            enemies.splice(j, 1);
+            score += 1;
+            break;
+          }
+        }
+      }
+
+      // 충돌 검사: 플레이어 미사일 vs 적 미사일 (서로 충돌 시 모두 제거)
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        for (let j = enemyBullets.length - 1; j >= 0; j--) {
+          if (isColliding(bullets[i], enemyBullets[j])) {
+            bullets.splice(i, 1);
+            enemyBullets.splice(j, 1);
+            break;
+          }
+        }
+      }
+
+      // 충돌 검사: 적 미사일 vs 플레이어
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        if (isColliding(enemyBullets[i], player)) {
+          enemyBullets.splice(i, 1);
+          player.lives -= 1;
+          if (player.lives <= 0) {
+            gameOver = true;
+          }
+        }
+      }
+
+      // 충돌 검사: 적 vs 플레이어
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        if (isColliding(enemies[i], player)) {
+          enemies.splice(i, 1);
+          player.lives -= 1;
+          if (player.lives <= 0) {
+            gameOver = true;
+          }
+        }
+      }
+
+      // 충돌 검사: 파란 아이템 vs 플레이어 (미사일 라인 업그레이드)
+      for (let i = items.length - 1; i >= 0; i--) {
+        if (isColliding(items[i], player)) {
+          items.splice(i, 1);
+          player.missileLines += 1;
+        }
+      }
+
+      // 충돌 검사: 빨간 아이템 vs 플레이어 (미사일 발사속도 업그레이드)
+      if (speedItem && isColliding(speedItem, player)) {
+        // 발사 쿨다운을 100ms 감소 (최소 100ms까지)
+        player.fireCooldown = Math.max(100, player.fireCooldown - 100);
+        speedItem = null;
+      }
+
+      // 스테이지 클리어: 모든 적을 처치하면 빨간 아이템(발사속도 업그레이드) 등장
+      if (enemies.length === 0) {
+        if (!speedItemSpawned) {
+          // 스테이지 끝에 빨간 아이템을 중앙에 생성
+          speedItem = new SpeedItem(canvasWidth / 2 - 10, canvasHeight / 2 - 10);
+          speedItemSpawned = true;
+        } else if (speedItemSpawned && speedItem === null) {
+          // 빨간 아이템이 수집(또는 사라지면) 다음 스테이지로 진행
+          level++;
+          spawnEnemies();
+        }
+      }
+    }
+
+    function render() {
+      ctx.fillStyle = `hsl(${bgHue}, 50%, 10%)`;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      player.draw();
+      bullets.forEach(b => b.draw());
+      enemies.forEach(enemy => enemy.draw());
+      enemyBullets.forEach(eb => eb.draw());
+      items.forEach(item => item.draw());
+      if (speedItem) speedItem.draw();
+
+      // UI 표시
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText("Score: " + score, 10, 20);
+      ctx.fillText("Lives: " + player.lives, 10, 40);
+      ctx.fillText("Level: " + level, 10, 60);
+      ctx.fillText("Missile Lines: " + player.missileLines, 10, 80);
+      ctx.fillText("Fire Cooldown: " + player.fireCooldown + "ms", 10, 100);
+      ctx.fillText("Ultimate: " + (ultimateAvailable ? "Ready (Enter)" : "Cooldown"), 10, 120);
+    }
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>5초 클릭 게임</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+    #gameContainer {
+      text-align: center;
+      background-color: #fff;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    #clickArea {
+      margin: 20px auto;
+      width: 300px;
+      height: 300px;
+      background-color: #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 24px;
+      user-select: none;
+      position: relative; /* ripple 효과를 위해 relative 설정 */
+      overflow: hidden;   /* ripple이 영역 밖으로 넘치지 않게 */
+    }
+    #startBtn, #resetBtn {
+      padding: 10px 20px;
+      font-size: 18px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #startBtn {
+      background-color: #28a745;
+      color: white;
+    }
+    #resetBtn {
+      background-color: #dc3545;
+      color: white;
+    }
+    /* ripple 효과 */
+    .ripple {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: ripple-animation 0.6s linear;
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+    }
+    @keyframes ripple-animation {
+      to {
+        transform: scale(15);
+        opacity: 0;
+      }
+    }
+    /* 점수 애니메이션 */
+    .score-animation {
+      animation: scaleUp 0.3s ease-out;
+    }
+    @keyframes scaleUp {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.5); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <h1>5초 클릭 게임</h1>
+    <p id="info">시작 버튼을 누르고, 제한 시간 내에 박스를 가능한 많이 클릭하세요!</p>
+    <button id="startBtn">시작</button>
+    <button id="resetBtn" style="display:none;">다시 시작</button>
+    <div id="clickArea" style="display:none;">여기를 클릭!</div>
+    <p id="timer" style="font-size: 20px;"></p>
+    <p id="score" style="font-size: 20px;"></p>
+  </div>
+
+  <script>
+    let score = 0;
+    let timeLeft = 5;
+    let timerInterval = null;
+    let gameStarted = false;
+
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const clickArea = document.getElementById('clickArea');
+    const timerDisplay = document.getElementById('timer');
+    const scoreDisplay = document.getElementById('score');
+    const infoText = document.getElementById('info');
+
+    // 게임 시작 함수
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+      score = 0;
+      timeLeft = 5;
+      scoreDisplay.textContent = "점수: " + score;
+      timerDisplay.textContent = "남은 시간: " + timeLeft + "초";
+      startBtn.style.display = "none";
+      resetBtn.style.display = "none";
+      clickArea.style.display = "flex";
+      infoText.textContent = "제한 시간 내에 박스를 가능한 많이 클릭하세요!";
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = "남은 시간: " + timeLeft + "초";
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+
+    // 게임 종료 함수
+    function endGame() {
+      clearInterval(timerInterval);
+      gameStarted = false;
+      clickArea.style.display = "none";
+      infoText.textContent = "시간 종료!";
+      timerDisplay.textContent = "";
+      scoreDisplay.textContent = "최종 점수: " + score;
+      resetBtn.style.display = "inline-block";
+    }
+
+    // 게임 리셋 함수
+    function resetGame() {
+      score = 0;
+      timeLeft = 5;
+      scoreDisplay.textContent = "";
+      timerDisplay.textContent = "";
+      infoText.textContent = "시작 버튼을 누르고, 제한 시간 내에 박스를 가능한 많이 클릭하세요!";
+      startBtn.style.display = "inline-block";
+      resetBtn.style.display = "none";
+    }
+
+    // 클릭 영역에 클릭 이벤트 설정
+    clickArea.addEventListener('click', (e) => {
+      if (!gameStarted) return;
+      
+      // 점수 증가 및 애니메이션 효과 (숫자 커졌다 작아짐)
+      score++;
+      scoreDisplay.textContent = "점수: " + score;
+      scoreDisplay.classList.remove('score-animation');
+      // 강제 reflow 를 통해 애니메이션 재시작
+      void scoreDisplay.offsetWidth;
+      scoreDisplay.classList.add('score-animation');
+
+      // ripple 효과 생성
+      const rect = clickArea.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      ripple.style.left = `${x - 10}px`; // 중앙 맞춤 (ripple width/2)
+      ripple.style.top = `${y - 10}px`;
+      clickArea.appendChild(ripple);
+      // ripple 애니메이션 종료 후 제거
+      setTimeout(() => {
+        ripple.remove();
+      }, 600);
+    });
+
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+  </script>
+</body>
+</html>

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>오델로 게임</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    #board {
+      border-collapse: collapse;
+      margin: 20px auto;
+    }
+    #board td {
+      width: 50px;
+      height: 50px;
+      border: 1px solid #333;
+      cursor: pointer;
+      position: relative;
+    }
+    .disc {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin: auto;
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      z-index: 1;
+    }
+    .black {
+      background-color: black;
+    }
+    .white {
+      background-color: white;
+      border: 1px solid #333;
+    }
+    /* 빨간 점 스타일 (마지막 수 표시) */
+    .last-move-marker {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: red;
+      border-radius: 50%;
+      top: 0;
+      right: 0;
+      margin: 2px;
+      z-index: 2;
+    }
+    #message {
+      margin: 10px;
+      font-size: 18px;
+    }
+    #restart, #undo {
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    /* 점수 표시 영역 */
+    #score {
+      margin-top: 10px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    /* 난이도, 플레이어 수 선택 영역 */
+    #options {
+      margin-top: 10px;
+      font-size: 18px;
+    }
+    #options select {
+      font-size: 16px;
+      margin: 0 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>오델로 게임</h1>
+  <div id="message"></div>
+  <table id="board"></table>
+  <button id="restart">게임 시작</button>
+  <button id="undo">무르기 (남은 횟수: 3)</button>
+  <div id="options">
+    <label for="playerCountSelect">플레이어 수:</label>
+    <select id="playerCountSelect">
+      <option value="1">1인용</option>
+      <option value="2">2인용</option>
+    </select>
+    <label for="difficultySelect">난이도 선택:</label>
+    <select id="difficultySelect">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+  </div>
+  <div id="score"></div>
+
+  <script>
+    const boardSize = 8;
+    let board = [];
+    let currentPlayer = 'B'; // 'B': 흑, 'W': 백
+    let lastMove = null;     // 마지막으로 돌을 둔 위치
+    let numPlayers = 1;      // 기본값: 1인용
+
+    // Undo 관련 변수
+    let moveHistory = [];    // 각 움직임 전 상태 스냅샷 저장
+    let undoCount = 0;       // 현재까지 무른 횟수
+    const maxUndoCount = 3;  // 최대 무를 수 있는 횟수
+
+    // 보드 깊은 복사 함수
+    function cloneBoard(b) {
+      return b.map(row => row.slice());
+    }
+
+    // 현재 상태(보드, 턴, 마지막 수)를 스냅샷으로 저장
+    function pushState() {
+      moveHistory.push({
+        board: cloneBoard(board),
+        currentPlayer: currentPlayer,
+        lastMove: lastMove ? { ...lastMove } : null
+      });
+    }
+
+    // 무르기 버튼 상태 업데이트
+    function updateUndoButton() {
+      const undoButton = document.getElementById("undo");
+      const remaining = maxUndoCount - undoCount;
+      undoButton.innerText = `무르기 (남은 횟수: ${remaining})`;
+      undoButton.disabled = (remaining <= 0);
+    }
+
+    // 게임 옵션(플레이어 수, 난이도) UI 업데이트
+    function updateOptionsUI() {
+      const playerCountSelect = document.getElementById("playerCountSelect");
+      const difficultySelect = document.getElementById("difficultySelect");
+      numPlayers = parseInt(playerCountSelect.value);
+      // 2인용이면 난이도 선택은 필요없으므로 비활성화
+      difficultySelect.disabled = (numPlayers === 2);
+    }
+
+    // 8x8 보드 초기화 및 시작 돌 배치
+    function initializeBoard() {
+      updateOptionsUI(); // 선택된 플레이어 수, 난이도 반영
+      board = [];
+      for (let i = 0; i < boardSize; i++) {
+        board.push(Array(boardSize).fill(' '));
+      }
+      board[3][3] = 'W';
+      board[3][4] = 'B';
+      board[4][3] = 'B';
+      board[4][4] = 'W';
+      currentPlayer = 'B';
+      lastMove = null;
+      moveHistory = [];
+      undoCount = 0;
+      updateUndoButton();
+      pushState();
+    }
+
+    // 보드 HTML 그리기
+    function drawBoard() {
+      const table = document.getElementById("board");
+      table.innerHTML = "";
+      for (let i = 0; i < boardSize; i++) {
+        const rowElem = document.createElement("tr");
+        for (let j = 0; j < boardSize; j++) {
+          const cell = document.createElement("td");
+          cell.dataset.row = i;
+          cell.dataset.col = j;
+          cell.addEventListener("click", cellClicked);
+
+          // 돌이 있는 경우 디스크 표시
+          if (board[i][j] === 'B' || board[i][j] === 'W') {
+            const disc = document.createElement("div");
+            disc.classList.add("disc");
+            disc.classList.add(board[i][j] === 'B' ? "black" : "white");
+            cell.appendChild(disc);
+          }
+          // 마지막으로 둔 수면 빨간 점 표시
+          if (lastMove && lastMove.row === i && lastMove.col === j) {
+            const marker = document.createElement("div");
+            marker.classList.add("last-move-marker");
+            cell.appendChild(marker);
+          }
+          rowElem.appendChild(cell);
+        }
+        table.appendChild(rowElem);
+      }
+      updateMessage();
+      updateScore();
+    }
+
+    // 현재 상황 메시지 업데이트
+    function updateMessage(msg) {
+      const messageDiv = document.getElementById("message");
+      if (msg) {
+        messageDiv.innerText = msg;
+      } else {
+        if (numPlayers === 1) {
+          // 1인용: 사람(흑)과 컴퓨터(백)
+          messageDiv.innerText = currentPlayer === 'B' ? "당신의 차례 (흑)" : "컴퓨터 차례 (백)";
+        } else {
+          // 2인용: 두 사람의 차례
+          messageDiv.innerText = currentPlayer === 'B' ? "흑의 차례" : "백의 차례";
+        }
+      }
+    }
+
+    // 점수 업데이트 (흑, 백 점수 표시)
+    function updateScore() {
+      let blackCount = 0, whiteCount = 0;
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          if (board[i][j] === 'B') blackCount++;
+          if (board[i][j] === 'W') whiteCount++;
+        }
+      }
+      document.getElementById("score").innerText = `흑: ${blackCount} / 백: ${whiteCount}`;
+    }
+
+    // 8방향 (상, 하, 좌, 우, 대각선)
+    const directions = [
+      [-1, 0], [1, 0], [0, -1], [0, 1],
+      [-1, -1], [-1, 1], [1, -1], [1, 1]
+    ];
+
+    // 해당 위치에 돌을 두었을 때 유효한지 검사
+    function validMove(board, row, col, player) {
+      if (board[row][col] !== ' ') return false;
+      const opponent = player === 'B' ? 'W' : 'B';
+      for (const [dr, dc] of directions) {
+        let r = row + dr, c = col + dc;
+        let hasOpponent = false;
+        while (r >= 0 && r < boardSize && c >= 0 && c < boardSize && board[r][c] === opponent) {
+          r += dr;
+          c += dc;
+          hasOpponent = true;
+        }
+        if (hasOpponent && r >= 0 && r < boardSize && c >= 0 && c < boardSize && board[r][c] === player) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // 플레이어(혹은 컴퓨터)가 둘 수 있는 모든 유효한 수 반환
+    function getValidMoves(board, player) {
+      const moves = [];
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          if (validMove(board, i, j, player)) {
+            moves.push({ row: i, col: j });
+          }
+        }
+      }
+      return moves;
+    }
+
+    // (돌 뒤집기 전에) 해당 수로 뒤집히는 돌의 개수 계산
+    function countFlips(board, row, col, player) {
+      const opponent = player === 'B' ? 'W' : 'B';
+      let totalFlips = 0;
+      for (const [dr, dc] of directions) {
+        let r = row + dr, c = col + dc;
+        let count = 0;
+        while (r >= 0 && r < boardSize && c >= 0 && c < boardSize && board[r][c] === opponent) {
+          count++;
+          r += dr;
+          c += dc;
+        }
+        if (count > 0 && r >= 0 && r < boardSize && c >= 0 && c < boardSize && board[r][c] === player) {
+          totalFlips += count;
+        }
+      }
+      return totalFlips;
+    }
+
+    // 돌을 놓고 뒤집어야 할 돌들을 모두 뒤집음
+    function flipStones(board, row, col, player) {
+      const opponent = player === 'B' ? 'W' : 'B';
+      board[row][col] = player;
+      lastMove = { row, col };
+      for (const [dr, dc] of directions) {
+        let r = row + dr, c = col + dc;
+        const stonesToFlip = [];
+        while (r >= 0 && r < boardSize && c >= 0 && c < boardSize && board[r][c] === opponent) {
+          stonesToFlip.push({ row: r, col: c });
+          r += dr;
+          c += dc;
+        }
+        if (stonesToFlip.length > 0 && r >= 0 && r < boardSize && c >= 0 && c < boardSize && board[r][c] === player) {
+          for (const pos of stonesToFlip) {
+            board[pos.row][pos.col] = player;
+          }
+        }
+      }
+    }
+
+    // 2인용 모드에서, 턴 시작 시 현재 플레이어가 둘 수 있는지 확인
+    function checkTurn() {
+      if (getValidMoves(board, currentPlayer).length === 0) {
+        const opponent = currentPlayer === 'B' ? 'W' : 'B';
+        if (getValidMoves(board, opponent).length === 0) {
+          endGame();
+        } else {
+          updateMessage(`${currentPlayer}님은 둘 곳이 없습니다. 턴이 ${opponent}로 넘어갑니다.`);
+          currentPlayer = opponent;
+        }
+      }
+    }
+
+    // 셀 클릭 이벤트 (플레이어의 차례)
+    function cellClicked(event) {
+      // 1인용 모드에서는 사람(흑)만 클릭 허용
+      if (numPlayers === 1 && currentPlayer !== 'B') return;
+      
+      const row = parseInt(this.dataset.row);
+      const col = parseInt(this.dataset.col);
+      if (!validMove(board, row, col, currentPlayer)) {
+        updateMessage("해당 위치에 둘 수 없습니다. 다시 선택해주세요.");
+        return;
+      }
+      pushState();
+      flipStones(board, row, col, currentPlayer);
+      drawBoard();
+      
+      if (numPlayers === 1) {
+        // 1인용: 사람이 둔 후 컴퓨터 턴 호출
+        setTimeout(computerTurn, 500);
+      } else {
+        // 2인용: 턴 전환 후 유효 턴 체크
+        currentPlayer = currentPlayer === 'B' ? 'W' : 'B';
+        checkTurn();
+        drawBoard();
+      }
+    }
+
+    // 컴퓨터(백) 턴 (1인용 모드 전용)
+    function computerTurn() {
+      currentPlayer = 'W';
+      const validMoves = getValidMoves(board, 'W');
+      if (validMoves.length === 0) {
+        // 컴퓨터가 둘 곳이 없으면 다시 사람 턴
+        currentPlayer = 'B';
+        if (getValidMoves(board, 'B').length === 0) {
+          endGame();
+          return;
+        }
+        updateMessage("컴퓨터가 둘 곳이 없습니다. 당신의 차례입니다.");
+        return;
+      }
+      
+      // 난이도에 따른 선택
+      const difficulty = document.getElementById("difficultySelect").value;
+      let move;
+      if (difficulty === 'easy') {
+        move = validMoves[Math.floor(Math.random() * validMoves.length)];
+      } else if (difficulty === 'medium') {
+        // 코너 우선: (0,0), (0,7), (7,0), (7,7)
+        const corners = validMoves.filter(m =>
+          (m.row === 0 && m.col === 0) ||
+          (m.row === 0 && m.col === boardSize - 1) ||
+          (m.row === boardSize - 1 && m.col === 0) ||
+          (m.row === boardSize - 1 && m.col === boardSize - 1)
+        );
+        move = (corners.length > 0) ?
+          corners[Math.floor(Math.random() * corners.length)] :
+          validMoves[Math.floor(Math.random() * validMoves.length)];
+      } else if (difficulty === 'hard') {
+        // 그리디 전략: 뒤집히는 돌의 수가 최대인 곳 선택
+        let bestMove = null;
+        let bestScore = -1;
+        for (const m of validMoves) {
+          const flips = countFlips(board, m.row, m.col, 'W');
+          if (flips > bestScore) {
+            bestScore = flips;
+            bestMove = m;
+          }
+        }
+        move = bestMove || validMoves[Math.floor(Math.random() * validMoves.length)];
+      }
+      
+      pushState();
+      flipStones(board, move.row, move.col, 'W');
+      drawBoard();
+      currentPlayer = 'B';
+      
+      // 사람이 둘 곳이 없으면 컴퓨터 연속 턴 처리
+      if (getValidMoves(board, 'B').length === 0) {
+        currentPlayer = 'W';
+        setTimeout(computerTurn, 500);
+      }
+      
+      if (getValidMoves(board, 'B').length === 0 && getValidMoves(board, 'W').length === 0) {
+        endGame();
+      }
+    }
+
+    // 무르기(Undo) 기능: 마지막 상태로 복원 (최대 3회)
+    function undoMove() {
+      if (undoCount >= maxUndoCount) {
+        updateMessage("더 이상 무를 수 없습니다. (최대 3회)");
+        return;
+      }
+      if (moveHistory.length <= 1) {
+        updateMessage("더 이상 무를 수 없습니다.");
+        return;
+      }
+      moveHistory.pop();
+      const prevState = moveHistory[moveHistory.length - 1];
+      board = cloneBoard(prevState.board);
+      currentPlayer = prevState.currentPlayer;
+      lastMove = prevState.lastMove ? { ...prevState.lastMove } : null;
+      undoCount++;
+      updateUndoButton();
+      drawBoard();
+    }
+
+    // 게임 종료 후 결과 표시
+    function endGame() {
+      let blackCount = 0, whiteCount = 0;
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          if (board[i][j] === 'B') blackCount++;
+          if (board[i][j] === 'W') whiteCount++;
+        }
+      }
+      let result = `게임 종료! 흑: ${blackCount}, 백: ${whiteCount}. `;
+      if (blackCount > whiteCount) {
+        result += "흑(승자)입니다!";
+      } else if (whiteCount > blackCount) {
+        result += "백(승자)입니다!";
+      } else {
+        result += "비겼습니다!";
+      }
+      updateMessage(result);
+      updateScore();
+    }
+
+    // 이벤트 리스너 등록
+    document.getElementById("restart").addEventListener("click", () => {
+      initializeBoard();
+      drawBoard();
+    });
+    document.getElementById("undo").addEventListener("click", undoMove);
+    document.getElementById("playerCountSelect").addEventListener("change", () => {
+      updateOptionsUI();
+    });
+
+    // 게임 초기화 후 시작
+    initializeBoard();
+    drawBoard();
+  </script>
+</body>
+</html>
