@@ -1,8 +1,4 @@
-<a id="downloadLink" download="2PlayerSnake.html" href="#">2인용 지렁이 게임 다운로드</a>
-
-<script>
-  // 게임 전체 코드 (위에서 제공한 2인용 지렁이 게임 코드)
-  const fileContent = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -26,8 +22,9 @@
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+
     const snakeSize = 20;
-    // 플레이어 1 (WASD, 초록색)
+    // 플레이어 1 (WASD) – 초록색, 기본 방향 RIGHT
     let snake1 = [
       { x: 200, y: 200 },
       { x: 180, y: 200 },
@@ -36,7 +33,8 @@
     let direction1 = 'RIGHT';
     let nextDirection1 = direction1;
     let score1 = 0;
-    // 플레이어 2 (화살표, 파란색)
+
+    // 플레이어 2 (화살표) – 파란색, 기본 방향 LEFT
     let snake2 = [
       { x: 1000, y: 600 },
       { x: 1020, y: 600 },
@@ -45,14 +43,23 @@
     let direction2 = 'LEFT';
     let nextDirection2 = direction2;
     let score2 = 0;
+
+    // 게임 루프 간격 (ms)
     const INTERVAL = 100;
+
+    // 여러 먹이를 관리할 배열
     let foods = [];
+    // 매 업데이트마다 먹이가 생성될 확률
     const spawnProbability = 0.05;
+
+    // 격자에 맞춘 랜덤 좌표 생성 함수
     function getRandomPosition() {
       const x = Math.floor(Math.random() * (canvas.width / snakeSize)) * snakeSize;
       const y = Math.floor(Math.random() * (canvas.height / snakeSize)) * snakeSize;
       return { x, y };
     }
+
+    // 먹이 생성 함수 (두 플레이어의 몸통이나 기존 먹이와 겹치지 않는 위치에 생성)
     function spawnFood() {
       let newFood;
       do {
@@ -66,6 +73,8 @@
       newFood.type = types[Math.floor(Math.random() * types.length)];
       foods.push(newFood);
     }
+
+    // 키 입력 이벤트 처리 (플레이어 1: WASD, 플레이어 2: 화살표)
     document.addEventListener("keydown", function(e) {
       const key = e.key;
       // 플레이어 1 (WASD)
@@ -89,8 +98,11 @@
         if (direction2 !== 'LEFT') nextDirection2 = 'RIGHT';
       }
     });
+
+    // 게임 오버 처리: 두 플레이어 중 어느 한 쪽이라도 충돌 시
     function gameOver() {
       alert("Game Over!\nPlayer 1 Score: " + score1 + "\nPlayer 2 Score: " + score2);
+      // 초기 상태로 재설정
       snake1 = [
         { x: 200, y: 200 },
         { x: 180, y: 200 },
@@ -99,6 +111,7 @@
       direction1 = 'RIGHT';
       nextDirection1 = direction1;
       score1 = 0;
+
       snake2 = [
         { x: 1000, y: 600 },
         { x: 1020, y: 600 },
@@ -107,24 +120,36 @@
       direction2 = 'LEFT';
       nextDirection2 = direction2;
       score2 = 0;
+
       foods = [];
     }
+
+    // 게임 상태 업데이트
     function update() {
+      // 일정 확률로 먹이 생성 (기존 먹이는 그대로 남음)
       if (Math.random() < spawnProbability) {
         spawnFood();
       }
+
+      // 버퍼의 방향을 현재 방향으로 반영
       direction1 = nextDirection1;
       direction2 = nextDirection2;
+
+      // 새 머리 좌표 계산 (플레이어 1)
       const newHead1 = { x: snake1[0].x, y: snake1[0].y };
       if (direction1 === 'UP') newHead1.y -= snakeSize;
       else if (direction1 === 'DOWN') newHead1.y += snakeSize;
       else if (direction1 === 'LEFT') newHead1.x -= snakeSize;
       else if (direction1 === 'RIGHT') newHead1.x += snakeSize;
+
+      // 새 머리 좌표 계산 (플레이어 2)
       const newHead2 = { x: snake2[0].x, y: snake2[0].y };
       if (direction2 === 'UP') newHead2.y -= snakeSize;
       else if (direction2 === 'DOWN') newHead2.y += snakeSize;
       else if (direction2 === 'LEFT') newHead2.x -= snakeSize;
       else if (direction2 === 'RIGHT') newHead2.x += snakeSize;
+
+      // 벽 충돌 체크
       if (newHead1.x < 0 || newHead1.x >= canvas.width || newHead1.y < 0 || newHead1.y >= canvas.height) {
         gameOver();
         return;
@@ -133,6 +158,8 @@
         gameOver();
         return;
       }
+
+      // 자기자신 충돌 체크
       if (snake1.some(segment => segment.x === newHead1.x && segment.y === newHead1.y)) {
         gameOver();
         return;
@@ -141,6 +168,8 @@
         gameOver();
         return;
       }
+
+      // 두 플레이어 간 충돌 체크
       if (snake2.some(segment => segment.x === newHead1.x && segment.y === newHead1.y)) {
         gameOver();
         return;
@@ -149,12 +178,17 @@
         gameOver();
         return;
       }
+      // 머리끼리 같은 좌표에 도달한 경우
       if (newHead1.x === newHead2.x && newHead1.y === newHead2.y) {
         gameOver();
         return;
       }
+
+      // 두 플레이어의 새 머리 추가
       snake1.unshift(newHead1);
       snake2.unshift(newHead2);
+
+      // 먹이 섭취 체크 (플레이어 1)
       let foodEaten1 = false;
       let eatenType1 = null;
       for (let i = 0; i < foods.length; i++) {
@@ -166,6 +200,7 @@
           break;
         }
       }
+      // 먹이 섭취 체크 (플레이어 2)
       let foodEaten2 = false;
       let eatenType2 = null;
       for (let i = 0; i < foods.length; i++) {
@@ -177,17 +212,22 @@
           break;
         }
       }
+
+      // 플레이어 1: 먹이를 먹었으면 성장 효과 적용, 아니면 꼬리 제거
       if (foodEaten1) {
         if (eatenType1 === "red") {
           score1 += 1;
+          // 기본 1 증가 (꼬리 제거 안함)
         } else if (eatenType1 === "blue") {
           score1 += 2;
+          // 파란색: 총 7 증가 (기본 1 + 추가 6)
           for (let i = 0; i < 6; i++) {
             const tail = snake1[snake1.length - 1];
             snake1.push({ x: tail.x, y: tail.y });
           }
         } else if (eatenType1 === "yellow") {
           score1 += 3;
+          // 노란색: 총 5 증가 (기본 1 + 추가 4)
           for (let i = 0; i < 4; i++) {
             const tail = snake1[snake1.length - 1];
             snake1.push({ x: tail.x, y: tail.y });
@@ -196,6 +236,8 @@
       } else {
         snake1.pop();
       }
+
+      // 플레이어 2: 먹이 섭취 처리
       if (foodEaten2) {
         if (eatenType2 === "red") {
           score2 += 1;
@@ -216,9 +258,14 @@
         snake2.pop();
       }
     }
+
+    // 화면 그리기
     function draw() {
+      // 배경 채우기
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 먹이 그리기
       foods.forEach(food => {
         let foodColor;
         if (food.type === "red") foodColor = "#f00";
@@ -227,10 +274,13 @@
         ctx.fillStyle = foodColor;
         ctx.fillRect(food.x, food.y, snakeSize, snakeSize);
       });
+
+      // 플레이어 1 (초록색) 그리기
       ctx.fillStyle = "#0f0";
       snake1.forEach(segment => {
         ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize);
       });
+      // 플레이어 1 머리 눈 그리기
       if (snake1.length > 0) {
         const head = snake1[0];
         const eyeRadius = 3;
@@ -265,10 +315,13 @@
           ctx.fill();
         }
       }
+
+      // 플레이어 2 (파란색) 그리기
       ctx.fillStyle = "#00f";
       snake2.forEach(segment => {
         ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize);
       });
+      // 플레이어 2 머리 눈 그리기
       if (snake2.length > 0) {
         const head = snake2[0];
         const eyeRadius = 3;
@@ -303,20 +356,21 @@
           ctx.fill();
         }
       }
+
+      // 점수 표시
       ctx.fillStyle = "#fff";
       ctx.font = "20px Arial";
       ctx.fillText("Player 1 Score: " + score1, 10, 30);
       ctx.fillText("Player 2 Score: " + score2, 10, 60);
     }
+
+    // 게임 루프
     function gameLoop() {
       update();
       draw();
     }
+
     setInterval(gameLoop, INTERVAL);
-  <\/script>
+  </script>
 </body>
-</html>`;
-  const blob = new Blob([fileContent], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  document.getElementById('downloadLink').href = url;
-</script>
+</html>

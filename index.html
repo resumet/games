@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>지후의 게임세상</title>
   <style>
     /* 기본 스타일 */
@@ -16,15 +17,28 @@
       color: #333;
       margin-bottom: 30px;
     }
-    /* 테이블 및 셀 스타일 */
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    /* 게임 그리드 컨테이너 */
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      justify-items: center;
     }
-    td {
-      width: 25%;
-      vertical-align: top;
-      padding: 10px;
+    /* 화면 너비에 따라 열 개수 조정 */
+    @media (max-width: 1200px) {
+      .game-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 768px) {
+      .game-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 480px) {
+      .game-grid {
+        grid-template-columns: 1fr;
+      }
     }
     /* 게임 아이템 박스 */
     .game-item {
@@ -35,6 +49,8 @@
       text-align: center;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       transition: transform 0.2s, box-shadow 0.2s;
+      width: 100%;
+      max-width: 300px;
     }
     .game-item:hover {
       transform: translateY(-5px);
@@ -42,8 +58,9 @@
     }
     /* 대표 이미지 스타일 */
     .game-image img {
-      width: 300px;
-      height: 300px;
+      width: 100%;
+      height: auto;
+      max-width: 300px;
       object-fit: cover;
       border-radius: 4px;
     }
@@ -65,108 +82,47 @@
       color: #666;
       font-size: 14px;
       line-height: 1.4;
-      height: 40px; /* 약 2줄 분량 */
+      max-height: 40px; /* 약 2줄 분량 */
       overflow: hidden;
+	  visibility: none;
     }
   </style>
 </head>
 <body>
   <h1>지후의 게임세상</h1>
-  <table>
-    <!-- 첫 번째 행 -->
-    <tr>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game1.html">
-            <img src="game1.jpg" alt="게임1 대표이미지">
-          </a>
-          <a class="game-name" href="game1.html">게임1</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game2.html">
-            <img src="game2.jpg" alt="게임2 대표이미지">
-          </a>
-          <a class="game-name" href="game2.html">게임2</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game3.html">
-            <img src="game3.jpg" alt="게임3 대표이미지">
-          </a>
-          <a class="game-name" href="game3.html">게임3</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game4.html">
-            <img src="game4.jpg" alt="게임4 대표이미지">
-          </a>
-          <a class="game-name" href="game4.html">게임4</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-    </tr>
-    <!-- 두 번째 행 (필요 시 추가) -->
-    <tr>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game5.html">
-            <img src="game5.jpg" alt="게임5 대표이미지">
-          </a>
-          <a class="game-name" href="game5.html">게임5</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game6.html">
-            <img src="game6.jpg" alt="게임6 대표이미지">
-          </a>
-          <a class="game-name" href="game6.html">게임6</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game7.html">
-            <img src="game7.jpg" alt="게임7 대표이미지">
-          </a>
-          <a class="game-name" href="game7.html">게임7</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="game-item">
-          <a class="game-image" href="game8.html">
-            <img src="game8.jpg" alt="게임8 대표이미지">
-          </a>
-          <a class="game-name" href="game8.html">게임8</a>
-          <div class="game-description">
-            간단한 설명 텍스트<br>두번째 줄 내용
-          </div>
-        </div>
-      </td>
-    </tr>
-  </table>
+  <div class="game-grid">
+    <!-- 게임 아이템 1 -->
+    <div class="game-item">
+      <a class="game-image" href="snake.html">
+        <img src="img/지렁이게임.jpg" alt="게임1 대표이미지">
+      </a>
+      <a class="game-name" href="snake.html">스네이크</a>
+      
+    </div>
+    <!-- 게임 아이템 2 -->
+    <div class="game-item">
+      <a class="game-image" href="galerg.html">
+        <img src="img/갤러그게임.jpg" alt="게임2 대표이미지">
+      </a>
+      <a class="game-name" href="galerg.html">갤러그</a>
+     
+    </div>
+    <!-- 게임 아이템 3 -->
+    <div class="game-item">
+      <a class="game-image" href="cps.html">
+        <img src="img/클릭하기게임.jpg" alt="게임3 대표이미지">
+      </a>
+      <a class="game-name" href="cps.html">빠르게 누르기</a>
+ 
+    </div>
+    <!-- 게임 아이템 4 -->
+    <div class="game-item">
+      <a class="game-image" href="othelo.html">
+        <img src="img/오델로게임.jpg" alt="게임4 대표이미지">
+      </a>
+      <a class="game-name" href="othelo.html">오델로</a>
+
+    </div>   
+  </div>
 </body>
 </html>
